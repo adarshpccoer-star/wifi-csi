@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { StatusBadge } from "../ui/StatusBadge";
-import { formatTimestamp } from "@/lib/formatting";
+import { formatTimestampIST } from "@/lib/formatting";
 import { Radio, Presentation } from "lucide-react";
 
 interface TopBarProps {
@@ -20,7 +20,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   useEffect(() => {
     const timer = setInterval(
-      () => setTimeStr(formatTimestamp(new Date().toISOString())),
+      () => setTimeStr(formatTimestampIST(new Date().toISOString())),
       1000,
     );
     return () => clearInterval(timer);

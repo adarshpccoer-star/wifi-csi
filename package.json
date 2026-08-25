@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "ws": "tsx server/websocket.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run ws\"",
     "lint": "eslint"
   },
   "dependencies": {
@@ -37,9 +39,11 @@
     "@types/react-dom": "^19.2.5",
     "@types/three": "^0.185.4",
     "@types/ws": "^8.18.1",
+    "concurrently": "^10.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

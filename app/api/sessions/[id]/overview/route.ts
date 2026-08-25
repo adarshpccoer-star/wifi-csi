@@ -1,107 +1,58 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/utils/supabse/server";
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
+type RouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
 
-    if (!id) {
+export async function GET(request: Request, context: RouteContext) {
+  try {
+    const { id: sessionId } = await context.params;
+
+    if (!sessionId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Session ID is required",
-        },
+        { error: "Session ID is required" },
         { status: 400 },
       );
     }
 
-    // -----------------------------
-    // Session
-    // -----------------------------
-
+    // 1. Fetch Session
     const { data: session, error: sessionError } = await supabaseAdmin
       .from("sessions")
       .select("*")
-      .eq("id", id)
-      .maybeSingle();
+      .eq("id", sessionId)
+      .single();
 
-    if (sessionError) {
-      console.error("Session query error:", sessionError);
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: sessionError.message,
-        },
-        { status: 500 },
-      );
+    if (sessionError || !session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (!session) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Session not found",
-        },
-        { status: 404 },
-      );
-    }
+    // 2. Fetch Devices
+    const { data: devices } = await supabaseAdmin.from("devices").select("*");
 
-    // -----------------------------
-    // Devices
-    // -----------------------------
-
-    const { data: devices, error: devicesError } = await supabaseAdmin
-      .from("devices")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (devicesError) {
-      console.error("Devices query error:", devicesError);
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: devicesError.message,
-        },
-        { status: 500 },
-      );
-    }
-
-    // -----------------------------
-    // Detections
-    // -----------------------------
-
-    const { data: detections, error: detectionsError } = await supabaseAdmin
+    // 3. Fetch Detections
+    const { data: detections } = await supabaseAdmin
       .from("detections")
       .select("*")
-      .eq("session_id", id)
+      .eq("session_id", sessionId)
       .order("timestamp", { ascending: false });
 
-    if (detectionsError) {
-      console.error("Detections query error:", detectionsError);
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: detectionsError.message,
-        },
-        { status: 500 },
-      );
-    }
+    // 4. Fetch Telemetry History (Required by RescueDashboard chart hydration)
+    const { data: telemetry } = await supabaseAdmin
+      .from("telemetry")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("timestamp", { ascending: true })
+      .limit(100);
 
     const safeDetections = detections ?? [];
     const safeDevices = devices ?? [];
-
-    // -----------------------------
-    // Stats
-    // -----------------------------
+    const safeTelemetry = telemetry ?? [];
 
     const possibleSurvivors = safeDetections.filter(
-      (d) => d.type === "POSSIBLE_SURVIVOR",
+      (d) => d.survivor_probability > 0.5,
     ).length;
 
     const onlineDevices = safeDevices.filter(
@@ -110,13 +61,10 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-
       session,
-
       devices: safeDevices,
-
       detections: safeDetections,
-
+      telemetry: safeTelemetry, // Direct fix for dashboard graph backfill
       stats: {
         totalDetections: safeDetections.length,
         possibleSurvivors,
@@ -124,13 +72,9 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("GET overview error:", error);
-
+    console.error("Overview error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch session overview",
-      },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }

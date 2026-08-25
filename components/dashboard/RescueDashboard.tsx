@@ -14,8 +14,25 @@ import { Device } from "@/app/types/device";
 import { Detection } from "@/app/types/detection";
 import { TelemetryData } from "@/app/types/telemetry";
 import { WSIncomingMessage } from "@/app/types/websocket";
-import { formatTimestamp } from "@/lib/formatting";
+import { formatTimestampIST } from "@/lib/formatting";
 import { Cpu, ShieldAlert, Activity } from "lucide-react";
+import { type Session } from "@/app/types/session";
+import { createClient } from "@supabase/supabase-js"; // Ensure client-side Supabase client instance
+
+// Initialize Supabase Client for Realtime Subscriptions
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Telemetry Normalization Helper (Ensures values strictly match Recharts [0, 1] domain)
+const normalizeValue = (
+  val: number | null | undefined,
+  min: number = 0,
+  max: number = 100,
+): number => {
+  if (val == null || Number.isNaN(val)) return 0;
+  return Math.min(1, Math.max(0, (val - min) / (max - min)));
+};
 
 export const RescueDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>("scene");
@@ -25,72 +42,225 @@ export const RescueDashboard: React.FC = () => {
     null,
   );
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
+
+  // Normalized telemetry window for Recharts consumption
   const [telemetryHistory, setTelemetryHistory] = useState<
     Array<{ time: string; movement: number; presence: number }>
   >([]);
-  const [isPresentationMode, setIsPresentationMode] = useState(false);
 
-  // 1. Fetch initial device list from backend API
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [availableSessions, setAvailableSessions] = useState<Session[]>([]);
+
+  // 1. Initial Device Fetch
   useEffect(() => {
     fetchDevices()
       .then((data) => setDevices(data))
       .catch((err) => console.error("Failed to load devices from API:", err));
   }, []);
 
-  // 2. Process incoming WebSocket messages in real-time
-  const handleWSMessage = useCallback((msg: WSIncomingMessage) => {
-    const timestampStr = formatTimestamp(new Date().toISOString());
-
-    switch (msg.type) {
-      case "heartbeat_ack":
-        setDevices((prev) =>
-          prev.map((dev) =>
-            dev.device_id === msg.deviceId
-              ? { ...dev, status: msg.status, last_seen: msg.timestamp }
-              : dev,
-          ),
-        );
-        break;
-
-      case "telemetry_ack":
-        setTelemetry({
-          deviceId: msg.deviceId,
-          timestamp: msg.timestamp,
-          meanAmplitude: msg.analysis.movementScore * 20,
-          frameDifference: msg.analysis.presenceScore,
-          rollingVariation: msg.analysis.survivorProbability,
-        });
-
-        setTelemetryHistory((prev) => [
-          ...prev.slice(-19),
-          {
-            time: timestampStr,
-            movement: msg.analysis.movementScore,
-            presence: msg.analysis.presenceScore,
-          },
-        ]);
-        break;
-
-      case "detection":
-        setActiveDetection(msg.detection);
-        break;
-
-      case "device_offline":
-        setDevices((prev) =>
-          prev.map((dev) =>
-            dev.device_id === msg.deviceId
-              ? { ...dev, status: "OFFLINE" }
-              : dev,
-          ),
-        );
-        break;
-
-      default:
-        break;
+  // 2. Fetch Sessions List
+  const fetchSessions = async () => {
+    try {
+      const res = await fetch("/api/sessions");
+      const data = await res.json();
+      if (res.ok) setAvailableSessions(data.sessions ?? []);
+    } catch (err) {
+      console.error("Failed to fetch sessions:", err);
     }
+  };
+
+  useEffect(() => {
+    fetchSessions();
   }, []);
 
-  // 3. Attach WebSocket hook
+  // 3. Hydrate & Listen via Supabase Realtime when Active Session changes
+  useEffect(() => {
+    if (!session?.id) return;
+
+    let isMounted = true;
+
+    // A. Fetch existing telemetry context for selected session
+    const loadSessionOverview = async () => {
+      try {
+        const response = await fetch(`/api/sessions/${session.id}/overview`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const result = await response.json();
+        if (!isMounted || !result.telemetry) return;
+
+        const formatted = result.telemetry.slice(-60).map((item: any) => ({
+          time: new Date(item.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+          movement: normalizeValue(item.frame_difference, 0, 100),
+          presence: normalizeValue(item.mean_amplitude, 0, 100),
+        }));
+
+        setTelemetryHistory(formatted);
+      } catch (err) {
+        console.error(
+          "Failed loading initial session telemetry overview:",
+          err,
+        );
+      }
+    };
+
+    loadSessionOverview();
+
+    // B. If Session is not active, skip starting realtime listener
+    if (session.status !== "ACTIVE") return;
+
+    // C. Subscribe to Realtime postgres_changes stream for continuous low-latency updates
+    const channel = supabase
+      .channel(`telemetry-session-${session.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "telemetry",
+          filter: `session_id=eq.${session.id}`,
+        },
+        (payload) => {
+          const item = payload.new;
+          const newPoint = {
+            time: new Date(item.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            movement: normalizeValue(item.frame_difference, 0, 100),
+            presence: normalizeValue(item.mean_amplitude, 0, 100),
+          };
+
+          setTelemetryHistory((prev) => [...prev, newPoint].slice(-60));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session?.id, session?.status]);
+
+  // Session Control Handlers
+  const handleCreateSession = async (name: string, area?: string) => {
+    const res = await fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, area }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setSession(data.session);
+      await fetchSessions();
+    }
+  };
+
+  const handleStartSession = async () => {
+    if (!session) return;
+    const res = await fetch(`/api/sessions/${session.id}/start`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (res.ok) setSession(data.session);
+  };
+
+  const handleStopSession = async () => {
+    if (!session) return;
+    const res = await fetch(`/api/sessions/${session.id}/stop`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (res.ok) setSession(data.session);
+  };
+
+  const handleSelectSession = (sessionId: string) => {
+    const selected = availableSessions.find((s) => s.id === sessionId);
+    if (selected) setSession(selected);
+  };
+
+  // 4. WebSocket Fallback processing
+  const handleWSMessage = useCallback(
+    (msg: WSIncomingMessage) => {
+      switch (msg.type) {
+        case "heartbeat_ack":
+          setDevices((prev) =>
+            prev.map((dev) =>
+              dev.device_id === msg.deviceId
+                ? {
+                    ...dev,
+                    status: msg.status || "ONLINE",
+                    last_seen: msg.timestamp || new Date().toISOString(),
+                  }
+                : dev,
+            ),
+          );
+          break;
+
+        case "telemetry_ack":
+          setTelemetry({
+            deviceId: msg.deviceId,
+            timestamp: msg.timestamp,
+            meanAmplitude: msg.analysis.movementScore * 20,
+            frameDifference: msg.analysis.presenceScore,
+            rollingVariation: msg.analysis.survivorProbability,
+          });
+
+          // Fallback realtime update when no session id is actively bound
+          if (!session?.id) {
+            setTelemetryHistory((prev) => [
+              ...prev.slice(-59),
+              {
+                time: formatTimestampIST(
+                  msg.timestamp || new Date().toISOString(),
+                ),
+                movement: normalizeValue(msg.analysis.movementScore, 0, 1),
+                presence: normalizeValue(msg.analysis.presenceScore, 0, 1),
+              },
+            ]);
+          }
+
+          setDevices((prev) =>
+            prev.map((dev) =>
+              dev.device_id === msg.deviceId
+                ? {
+                    ...dev,
+                    status: "ONLINE",
+                    last_seen: msg.timestamp || new Date().toISOString(),
+                  }
+                : dev,
+            ),
+          );
+          break;
+
+        case "detection":
+          setActiveDetection(msg.detection);
+          break;
+
+        case "device_offline":
+          setDevices((prev) =>
+            prev.map((dev) =>
+              dev.device_id === msg.deviceId
+                ? { ...dev, status: "OFFLINE" }
+                : dev,
+            ),
+          );
+          break;
+
+        default:
+          break;
+      }
+    },
+    [session?.id],
+  );
+
   const { isConnected } = useRescueWebSocket({
     url: "ws://localhost:3001",
     onMessage: handleWSMessage,
@@ -99,6 +269,7 @@ export const RescueDashboard: React.FC = () => {
   const onlineSensorsCount = devices.filter(
     (d) => d.status === "ONLINE",
   ).length;
+  const totalSensorsCount = devices.length;
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden select-none font-mono">
@@ -111,13 +282,18 @@ export const RescueDashboard: React.FC = () => {
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar
           onlineSensorsCount={onlineSensorsCount}
-          totalSensorsCount={devices.length}
+          totalSensorsCount={totalSensorsCount}
           isConnected={isConnected}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
+          session={session}
+          availableSessions={availableSessions}
+          onSelectSession={handleSelectSession}
+          onCreateSession={handleCreateSession}
+          onStartSession={handleStartSession}
+          onStopSession={handleStopSession}
         />
 
-        {/* Dynamic Main Section switching based on activeTab */}
         <main className="flex-1 relative border-r border-slate-800 overflow-y-auto bg-slate-950">
           {activeTab === "scene" && (
             <div className="w-full h-full relative">
@@ -129,13 +305,12 @@ export const RescueDashboard: React.FC = () => {
                 latestActivity={telemetry?.rollingVariation ?? 0}
               />
 
-              {/* Bottom Overlay Chart */}
               <div className="absolute bottom-4 left-4 right-4 z-10 bg-slate-950/80 backdrop-blur-md border border-slate-800 p-3 rounded-lg">
                 <div className="text-[10px] font-mono text-slate-400 mb-1 flex justify-between">
                   <span>LIVE SIGNAL STABILITY & MOVEMENT TRENDS</span>
                   <span className="text-cyan-400">
                     {telemetryHistory.length > 0
-                      ? "LIVE DATA FEED"
+                      ? `LIVE FEED (${telemetryHistory.length} SAMPLES)`
                       : "WAITING FOR TRANSMISSION..."}
                   </span>
                 </div>
@@ -180,7 +355,9 @@ export const RescueDashboard: React.FC = () => {
                         <div>
                           Last Active:{" "}
                           <span className="text-slate-300">
-                            {formatTimestamp(dev.last_seen)}
+                            {dev.last_seen
+                              ? formatTimestampIST(dev.last_seen)
+                              : "N/A"}
                           </span>
                         </div>
                       </div>
@@ -209,7 +386,7 @@ export const RescueDashboard: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-red-400">ACTIVE ALERT</span>
                     <span className="text-xs text-slate-400">
-                      {formatTimestamp(activeDetection.timestamp)}
+                      {formatTimestampIST(activeDetection.timestamp)}
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-xs">

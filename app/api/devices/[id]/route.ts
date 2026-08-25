@@ -1,10 +1,13 @@
-import { createClient } from "@/lib/utils/supabse/server";
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/utils/supabse/server";
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+type RouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
 
@@ -12,13 +15,11 @@ export async function GET(
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-
-    const { data: device, error } = await supabase
+    const { data: device, error } = await supabaseAdmin
       .from("devices")
       .select("*")
-      .eq("id", id)
-      .single(); // Returns a single object instead of an array
+      .eq("device_id", id)
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -28,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: "Device not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ device }, { status: 200 });
+    return NextResponse.json({ success: true, device }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("API Error:", message);

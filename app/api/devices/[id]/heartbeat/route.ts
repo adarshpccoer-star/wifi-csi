@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/utils/supabse/server";
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+type RouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+export async function POST(request: Request, context: RouteContext) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
 
     if (!id) {
       return NextResponse.json(
@@ -15,7 +18,7 @@ export async function POST(
       );
     }
 
-    // Update device using supabaseAdmin to bypass RLS restrictions
+    // Update by hardware device_id (not primary key UUID)
     const { data: updatedDevices, error: updateError } = await supabaseAdmin
       .from("devices")
       .update({
@@ -35,7 +38,7 @@ export async function POST(
 
     if (!updatedDevices || updatedDevices.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Device not found" },
+        { success: false, error: "Device not found for heartbeat" },
         { status: 404 },
       );
     }
@@ -46,7 +49,7 @@ export async function POST(
       device: updatedDevices[0],
     });
   } catch (error) {
-    console.error("Heartbeat error:", error);
+    console.error("Heartbeat processing error:", error);
     return NextResponse.json(
       { success: false, error: "Heartbeat processing failed" },
       { status: 500 },

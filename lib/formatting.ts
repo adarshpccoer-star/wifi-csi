@@ -1,26 +1,23 @@
-export function formatTimestamp(isoString?: string | null): string {
-  if (!isoString) return "--:--:--";
+// lib/formatting.ts
+
+export const formatTimestampIST = (isoString?: string | null): string => {
+  if (!isoString) return "N/A";
   const date = new Date(isoString);
-  return date.toLocaleTimeString("en-US", { hour12: false });
-}
+  return date.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+};
 
-export function formatDuration(startedAt?: string | null): string {
-  if (!startedAt) return "00:00:00";
-  const diff = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000),
-  );
-  const hrs = Math.floor(diff / 3600)
-    .toString()
-    .padStart(2, "0");
-  const mins = Math.floor((diff % 3600) / 60)
-    .toString()
-    .padStart(2, "0");
-  const secs = (diff % 60).toString().padStart(2, "0");
-  return `${hrs}:${mins}:${secs}`;
-}
-
-export function formatPercent(val?: number): string {
-  if (val === undefined || val === null) return "0%";
-  return `${Math.round(val * 100)}%`;
-}
+export const formatFullDateTimeIST = (isoString?: string | null): string => {
+  if (!isoString) return "N/A";
+  const date = new Date(isoString);
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "medium",
+  });
+};
