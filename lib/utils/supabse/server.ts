@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+// Standard user-context server client (respects RLS & auth cookies)
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -18,7 +20,7 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Called from Server Component; safe to ignore if middleware refreshes sessions
+            // Safe to ignore in Server Components
           }
         },
       },
@@ -26,4 +28,14 @@ export async function createClient() {
   );
 }
 
-export const supabseServer = createClient();
+// Admin client using Service Role Key (bypasses RLS, no cookies needed)
+export const supabaseAdmin = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  },
+);
