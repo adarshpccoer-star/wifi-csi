@@ -80,13 +80,13 @@ export const DetectionPanel: React.FC<DetectionPanelProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <MetricCard
             label="RSSI"
-            value={telemetry?.rssi !== undefined ? telemetry.rssi : "--"}
+            value={telemetry?.rssi != null ? telemetry.rssi : "--"}
             unit="dBm"
           />
           <MetricCard
             label="Mean Amp"
             value={
-              telemetry?.meanAmplitude !== undefined
+              telemetry?.meanAmplitude != null
                 ? telemetry.meanAmplitude.toFixed(1)
                 : "--"
             }
@@ -94,7 +94,7 @@ export const DetectionPanel: React.FC<DetectionPanelProps> = ({
           <MetricCard
             label="Frame Diff"
             value={
-              telemetry?.frameDifference !== undefined
+              telemetry?.frameDifference != null
                 ? telemetry.frameDifference.toFixed(3)
                 : "--"
             }
@@ -102,7 +102,7 @@ export const DetectionPanel: React.FC<DetectionPanelProps> = ({
           <MetricCard
             label="Roll Var"
             value={
-              telemetry?.rollingVariation !== undefined
+              telemetry?.rollingVariation != null
                 ? telemetry.rollingVariation.toFixed(3)
                 : "--"
             }

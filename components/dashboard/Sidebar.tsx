@@ -14,19 +14,10 @@ import {
   Play,
   FolderOpen,
 } from "lucide-react";
+import { Session } from "@/app/types/session";
 
 export type TabType = "scene" | "devices" | "detections" | "telemetry";
 export type SessionStatus = "CREATED" | "ACTIVE" | "COMPLETED";
-
-export interface Session {
-  id: string;
-  name: string;
-  area?: string | null;
-  status: SessionStatus;
-  started_at: string | null;
-  ended_at: string | null;
-  created_at: string;
-}
 
 interface SidebarProps {
   onlineSensorsCount: number;

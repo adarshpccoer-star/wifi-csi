@@ -32,7 +32,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         <Radio className="w-5 h-5 text-cyan-400 animate-pulse" />
         <div>
           <h1 className="text-sm font-bold tracking-wider text-slate-100">
-            CSI RESCUE
+            RESQSENSE
           </h1>
           <p className="text-[9px] text-slate-400 tracking-tight">
             REAL-TIME WI-FI CSI SURVIVOR DETECTION

@@ -17,7 +17,7 @@ import { WSIncomingMessage } from "@/app/types/websocket";
 import { formatTimestampIST } from "@/lib/formatting";
 import { Cpu, ShieldAlert, Activity } from "lucide-react";
 import { type Session } from "@/app/types/session";
-import { createClient } from "@supabase/supabase-js"; // Ensure client-side Supabase client instance
+import { createClient } from "@supabase/supabase-js";
 
 // Initialize Supabase Client for Realtime Subscriptions
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -74,80 +74,83 @@ export const RescueDashboard: React.FC = () => {
     fetchSessions();
   }, []);
 
-  // 3. Hydrate & Listen via Supabase Realtime when Active Session changes
+  // 3. Load Session Data Pattern
   useEffect(() => {
     if (!session?.id) return;
 
-    let isMounted = true;
+    let mounted = true;
 
-    // A. Fetch existing telemetry context for selected session
-    const loadSessionOverview = async () => {
+    const loadSessionData = async () => {
       try {
-        const response = await fetch(`/api/sessions/${session.id}/overview`, {
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-
-        const result = await response.json();
-        if (!isMounted || !result.telemetry) return;
-
-        const formatted = result.telemetry.slice(-60).map((item: any) => ({
-          time: new Date(item.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
+        const [telemetryRes, detectionsRes] = await Promise.all([
+          fetch(`/api/sessions/${session.id}/telemetry`, {
+            cache: "no-store",
           }),
-          movement: normalizeValue(item.frame_difference, 0, 100),
-          presence: normalizeValue(item.mean_amplitude, 0, 100),
-        }));
+          fetch(`/api/sessions/${session.id}/detections`, {
+            cache: "no-store",
+          }),
+        ]);
 
-        setTelemetryHistory(formatted);
-      } catch (err) {
-        console.error(
-          "Failed loading initial session telemetry overview:",
-          err,
-        );
-      }
-    };
+        const telemetryData = telemetryRes.ok
+          ? await telemetryRes.json()
+          : { telemetry: [] };
 
-    loadSessionOverview();
+        const detectionData = detectionsRes.ok
+          ? await detectionsRes.json()
+          : { detections: [] };
 
-    // B. If Session is not active, skip starting realtime listener
-    if (session.status !== "ACTIVE") return;
+        if (!mounted) return;
 
-    // C. Subscribe to Realtime postgres_changes stream for continuous low-latency updates
-    const channel = supabase
-      .channel(`telemetry-session-${session.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "telemetry",
-          filter: `session_id=eq.${session.id}`,
-        },
-        (payload) => {
-          const item = payload.new;
-          const newPoint = {
+        const telemetryRows = telemetryData.telemetry ?? [];
+        const detectionRows = detectionData.detections ?? [];
+
+        if (telemetryRows.length > 0) {
+          const latest = telemetryRows[telemetryRows.length - 1];
+
+          setTelemetry({
+            id: latest.id,
+            session_id: latest.session_id,
+            deviceId: latest.device_id,
+            timestamp: latest.timestamp,
+            rssi: latest.rssi,
+            meanAmplitude: latest.mean_amplitude,
+            amplitudeStd: latest.amplitude_std,
+            rmsAmplitude: latest.rms_amplitude,
+            frameDifference: latest.frame_difference,
+            rollingVariation: latest.rolling_variation,
+          });
+        }
+
+        if (detectionRows.length > 0) {
+          setActiveDetection(detectionRows[0]);
+        } else {
+          setActiveDetection(null);
+        }
+
+        setTelemetryHistory(
+          telemetryRows.slice(-60).map((item: any) => ({
             time: new Date(item.timestamp).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
               second: "2-digit",
             }),
-            movement: normalizeValue(item.frame_difference, 0, 100),
-            presence: normalizeValue(item.mean_amplitude, 0, 100),
-          };
 
-          setTelemetryHistory((prev) => [...prev, newPoint].slice(-60));
-        },
-      )
-      .subscribe();
+            movement: normalizeValue(item.frame_difference, 0, 100),
+
+            presence: normalizeValue(item.mean_amplitude, 0, 100),
+          })),
+        );
+      } catch (error) {
+        console.error("Failed to load session data:", error);
+      }
+    };
+
+    loadSessionData();
 
     return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
+      mounted = false;
     };
-  }, [session?.id, session?.status]);
+  }, [session?.id]);
 
   // Session Control Handlers
   const handleCreateSession = async (name: string, area?: string) => {
@@ -262,7 +265,9 @@ export const RescueDashboard: React.FC = () => {
   );
 
   const { isConnected } = useRescueWebSocket({
-    url: "ws://localhost:3001",
+    url:
+      process.env.NEXT_PUBLIC_WS_URL ||
+      "wss://wifi-csi-shi-websocket.onrender.com",
     onMessage: handleWSMessage,
   });
 

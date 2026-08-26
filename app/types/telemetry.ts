@@ -1,13 +1,14 @@
-export interface TelemetryFeatures {
-  meanAmplitude?: number;
-  amplitudeStd?: number;
-  rmsAmplitude?: number;
-  frameDifference?: number;
-  rollingVariation?: number;
-}
-
-export interface TelemetryData extends TelemetryFeatures {
-  rssi?: number;
-  timestamp?: string;
+export interface TelemetryData {
+  id?: string;
+  session_id?: string;
   deviceId?: string;
+
+  timestamp: string;
+
+  rssi?: number | null;
+  meanAmplitude?: number | null;
+  amplitudeStd?: number | null;
+  rmsAmplitude?: number | null;
+  frameDifference?: number | null;
+  rollingVariation?: number | null;
 }
