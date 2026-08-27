@@ -75,6 +75,10 @@ export const RescueDashboard: React.FC = () => {
     fetchSessions();
   }, []);
 
+<<<<<<< HEAD
+=======
+  // 3. Load Session Data Pattern
+>>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
   // 3. Load live data for the selected active session
   useEffect(() => {
     if (!session?.id) return;
@@ -83,11 +87,18 @@ export const RescueDashboard: React.FC = () => {
 
     const loadSessionData = async () => {
       try {
+<<<<<<< HEAD
         const overviewRes = await fetch(
           `/api/sessions/${session.id}/overview`,
           {
             cache: "no-store",
           },
+=======
+        // This route already exists and returns devices, telemetry, and detections.
+        const overviewRes = await fetch(
+          `/api/sessions/${session.id}/overview`,
+          { cache: "no-store" },
+>>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
         );
 
         if (!overviewRes.ok) {
@@ -95,15 +106,23 @@ export const RescueDashboard: React.FC = () => {
             `Session overview request failed: ${overviewRes.status}`,
           );
         }
+<<<<<<< HEAD
 
         const overview = await overviewRes.json();
+=======
+>>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
 
+        const overview = await overviewRes.json();
         if (!mounted) return;
 
         const telemetryRows = overview.telemetry ?? [];
         const detectionRows = overview.detections ?? [];
 
+<<<<<<< HEAD
         // Load device status and coordinates
+=======
+        // Gets ONLINE/OFFLINE status and database coordinates from public.devices.
+>>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
         setDevices(overview.devices ?? []);
 
         if (telemetryRows.length > 0) {
@@ -123,9 +142,13 @@ export const RescueDashboard: React.FC = () => {
           });
         }
 
+<<<<<<< HEAD
         setActiveDetection(
           detectionRows.length > 0 ? detectionRows[0] : null,
         );
+=======
+        setActiveDetection(detectionRows.length > 0 ? detectionRows[0] : null);
+>>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
 
         setTelemetryHistory(
           telemetryRows.slice(-60).map((item: any) => ({
@@ -145,10 +168,15 @@ export const RescueDashboard: React.FC = () => {
 
     loadSessionData();
 
+<<<<<<< HEAD
     // Refresh every 3 seconds
     const refreshTimer = window.setInterval(() => {
       loadSessionData();
     }, 3000);
+=======
+    // Pull fresh Supabase-backed values every 3 seconds.
+    const refreshTimer = window.setInterval(loadSessionData, 3_000);
+>>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
 
     return () => {
       mounted = false;
