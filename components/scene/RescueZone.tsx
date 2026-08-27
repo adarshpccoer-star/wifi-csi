@@ -21,11 +21,10 @@ export const RescueZone: React.FC<RescueZoneProps> = ({
       <mesh>
         <boxGeometry args={bounds} />
         <meshBasicMaterial
-          color={isInvestigating ? "#ef4444" : "#a855f7"}
-          wireframe
-          transparent
-          opacity={0.15}
-        />
+  color={isInvestigating ? "#ef4444" : "#06b6d4"}
+  transparent
+  opacity={0.04}
+/>
       </mesh>
     </group>
   );

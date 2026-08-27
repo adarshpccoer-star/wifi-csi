@@ -234,19 +234,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Status:</span>
-                  <span
-                    className={
-                      session.status === "ACTIVE"
-                        ? "text-emerald-400 font-bold"
-                        : session.status === "CREATED"
-                          ? "text-amber-400 font-bold"
-                          : "text-slate-400 font-bold"
-                    }
-                  >
-                    {session.status}
-                  </span>
-                </div>
+  <span className="text-slate-500">Status:</span>
+
+  <div className="flex items-center gap-2">
+    <span
+      className={`w-2 h-2 rounded-full ${
+        session.status === "ACTIVE"
+          ? "bg-emerald-400 animate-pulse"
+          : session.status === "CREATED"
+            ? "bg-amber-400"
+            : "bg-slate-500"
+      }`}
+    />
+
+    <span
+      className={
+        session.status === "ACTIVE"
+          ? "text-emerald-400 font-bold"
+          : session.status === "CREATED"
+            ? "text-amber-400 font-bold"
+            : "text-slate-400 font-bold"
+      }
+    >
+      {session.status}
+    </span>
+  </div>
+</div>
 
                 <div className="flex justify-between">
                   <span className="text-slate-500">Started:</span>
@@ -320,9 +333,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* SYSTEM STATUS PANEL */}
         <GlassPanel className="space-y-2 p-3 border border-white shadow-lg shadow-white/20 rounded-lg mt-4">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            SYSTEM STATUS
-          </div>
+          <div className="flex items-center justify-between">
+  <div className="text-[10px] font-bold text-white uppercase tracking-wider">
+    SYSTEM STATUS
+  </div>
+
+  <div className="flex items-center gap-2">
+    <span
+      className={`w-2 h-2 rounded-full ${
+        isConnected
+          ? "bg-emerald-400 animate-pulse"
+          : "bg-amber-400"
+      }`}
+    />
+    <span className="text-[10px] text-slate-400">
+      {isConnected ? "LIVE" : "STANDBY"}
+    </span>
+  </div>
+</div>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-slate-400 flex items-center gap-1.5">
@@ -340,14 +368,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
               <StatusBadge status="ONLINE" text="CONNECTED" />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400 flex items-center gap-1.5">
-                <Cpu className="w-3 h-3 text-cyan-400" /> Sensors
-              </span>
-              <span className="text-slate-300 font-mono">
-                {onlineSensorsCount} / {totalSensorsCount} ONLINE
-              </span>
-            </div>
+            <div>
+  <div className="flex justify-between items-center">
+    <span className="text-slate-400 flex items-center gap-1.5">
+      <Cpu className="w-3 h-3 text-cyan-400" />
+      Sensors
+    </span>
+
+    <span className="text-cyan-300 font-bold text-sm">
+      {onlineSensorsCount}/{totalSensorsCount}
+    </span>
+  </div>
+
+  <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+    <div
+      className="h-full bg-cyan-400 transition-all duration-500"
+      style={{
+        width: `${(onlineSensorsCount / Math.max(totalSensorsCount, 1)) * 100}%`,
+      }}
+    />
+  </div>
+</div>
           </div>
         </GlassPanel>
       </aside>

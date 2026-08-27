@@ -69,8 +69,8 @@ export const SensorNode: React.FC<SensorNodeProps> = ({
     <group position={pos}>
       {/* Physical Sensor Housing — color = stable device identity */}
       <mesh onClick={() => onSelect(device)}>
-        <boxGeometry args={[0.4, 0.2, 0.3]} />
-        <meshStandardMaterial color={nodeColor} metalness={0.5} />
+      <boxGeometry args={[0.6, 0.3, 0.45]} />        
+      <meshStandardMaterial color={nodeColor} metalness={0.5} />
       </mesh>
 
       {/* Selection indicator — separate from identity color */}
@@ -93,7 +93,7 @@ export const SensorNode: React.FC<SensorNodeProps> = ({
       </mesh>
 
       {/* Vertical Status Beacon — color = online/offline, independent of node identity */}
-      <mesh ref={beaconRef} position={[0, 0.6, 0]}>
+      <mesh ref={beaconRef} position={[0, 1 , 0]}>
         <cylinderGeometry args={[0.01, 0.01, 1]} />
         <meshBasicMaterial
           color={isOnline ? "#10b981" : "#64748b"}

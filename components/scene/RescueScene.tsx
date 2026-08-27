@@ -10,6 +10,7 @@ import { CollapseBox } from "./CollapseBox";
 import { SensorNode } from "./SensorNode";
 import { SurvivorMarker } from "./SurvivorMarker";
 import { RescueZone } from "./RescueZone";
+import { DetectionBeam } from "./DetectionBeam";
 
 interface RescueSceneProps {
   devices: Device[];
@@ -29,10 +30,19 @@ export const RescueScene: React.FC<RescueSceneProps> = ({
   activeDetection,
   latestActivity,
 }) => {
+  const survivorPosition: [number, number, number] = [
+  0,
+  0.7,
+  0,
+];
   return (
     <div className="w-full h-full relative bg-black">
       <Canvas shadows>
-        <PerspectiveCamera makeDefault position={[12, 12, 14]} fov={45} />
+        <PerspectiveCamera
+  makeDefault
+  position={[8, 7, 10]}
+  fov={50}
+/>
         <OrbitControls maxPolarAngle={Math.PI / 2 - 0.05} minDistance={5} maxDistance={40} />
 
         {/* Neutral white ambient instead of cyan-tinted — lets node identity colors read true */}
@@ -55,7 +65,12 @@ export const RescueScene: React.FC<RescueSceneProps> = ({
           status={activeDetection ? "INVESTIGATING" : "NORMAL"}
         />
 
-        <CollapseBox position={BOX_CENTER} size={BOX_SIZE} />
+        <CollapseBox
+        isHotspot={Boolean(
+  activeDetection &&
+  activeDetection.survivor_probability > 0.5
+)} 
+        position={BOX_CENTER} size={BOX_SIZE} />
 
         {devices.map((device) => (
           <SensorNode
@@ -66,6 +81,23 @@ export const RescueScene: React.FC<RescueSceneProps> = ({
             activityLevel={latestActivity}
           />
         ))}
+        {activeDetection &&
+  activeDetection.survivor_probability > 0.5 &&
+  devices.map((device) => {
+    const start: [number, number, number] = [
+      device.location_x ?? 0,
+      device.location_z ?? 0,
+      device.location_y ?? 0,
+    ];
+
+    return (
+      <DetectionBeam
+        key={`beam-${device.id}`}
+        start={start}
+        end={survivorPosition}
+      />
+    );
+  })}
 
        {activeDetection && activeDetection.survivor_probability > 0.5 && (
   <SurvivorMarker detection={activeDetection} position={BOX_CENTER} />

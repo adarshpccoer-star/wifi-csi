@@ -9,12 +9,21 @@ interface TopBarProps {
   isConnected: boolean;
   isPresentationMode: boolean;
   onTogglePresentation: () => void;
+
+  onlineSensors?: number;
+  totalSensors?: number;
+  survivorProbability?: number;
+  activeSession?: boolean;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   isConnected,
   isPresentationMode,
   onTogglePresentation,
+  onlineSensors = 0,
+  totalSensors = 3,
+  survivorProbability = 0,
+  activeSession = false,
 }) => {
   const [timeStr, setTimeStr] = useState<string>("");
 
@@ -40,16 +49,43 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      <div className="hidden md:flex items-center gap-6 text-xs">
-        <div>
-          <span className="text-slate-500 mr-2">MISSION:</span>
-          <span className="text-slate-200 font-bold">Operation Phoenix</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500">STATUS:</span>
-          <StatusBadge status="ACTIVE" text="● LIVE" />
-        </div>
-      </div>
+      <div className="hidden md:flex items-center gap-3">
+  <div className="px-3 py-1 rounded-lg bg-slate-900 border border-cyan-900">
+    <div className="text-cyan-400 text-lg font-bold">
+      {onlineSensors}/{totalSensors}
+    </div>
+    <div className="text-[10px] text-slate-400 uppercase">
+      Sensors
+    </div>
+  </div>
+
+  <div className="px-3 py-1 rounded-lg bg-slate-900 border border-emerald-900">
+    <div className="text-emerald-400 text-lg font-bold">
+      {activeSession ? "LIVE" : "IDLE"}
+    </div>
+    <div className="text-[10px] text-slate-400 uppercase">
+      Session
+    </div>
+  </div>
+
+  <div className="px-3 py-1 rounded-lg bg-slate-900 border border-red-900">
+    <div className="text-red-400 text-lg font-bold">
+      {Math.round(survivorProbability)}%
+    </div>
+    <div className="text-[10px] text-slate-400 uppercase">
+      Survivor
+    </div>
+  </div>
+
+  <div className="px-3 py-1 rounded-lg bg-slate-900 border border-cyan-900">
+    <div className="text-cyan-400 text-lg font-bold">
+      {isConnected ? "LIVE" : "OFF"}
+    </div>
+    <div className="text-[10px] text-slate-400 uppercase">
+      CSI Feed
+    </div>
+  </div>
+</div>
 
       <div className="flex items-center gap-4 text-xs">
         <div className="hidden lg:flex items-center gap-2">
