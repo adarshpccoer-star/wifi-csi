@@ -37,24 +37,34 @@ export const CollapseBox: React.FC<CollapseBoxProps> = ({
       <mesh castShadow receiveShadow>
         <boxGeometry args={size} />
         <meshStandardMaterial
-  color={isHotspot ? "#5b1a1a" : "#2f343b"}
-  emissive={isHotspot ? "#ff2200" : "#000000"}
-  emissiveIntensity={isHotspot ? 1.4 : 0}
+  color="#2f343b"
   roughness={0.95}
   metalness={0.05}
   transparent
-  opacity={0.96}
+  opacity={0.18}
 />
       </mesh>
 
       {/* Internal glow source — only lit when someone is detected inside */}
       {isHotspot && (
-  <pointLight
-    color="#ff5522"
-    intensity={12}
-    distance={8}
-    decay={1.5}
-  />
+  <>
+    <mesh position={[0, -size[1] / 2 + 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.6, 0.9, 64]} />
+      <meshBasicMaterial
+        color="#ff5522"
+        transparent
+        opacity={0.95}
+      />
+    </mesh>
+
+    <pointLight
+      position={[0, 0.1, 0]}
+      color="#ff5522"
+      intensity={4}
+      distance={3}
+      decay={2}
+    />
+  </>
 )}
 
       {/* Edge lines so the box reads as structure, not fog */}
