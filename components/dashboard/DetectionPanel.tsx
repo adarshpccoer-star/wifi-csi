@@ -19,9 +19,12 @@ export const DetectionPanel: React.FC<DetectionPanelProps> = ({
   const isSurvivor = Boolean(detection && detection.survivor_probability > 0.5);
 
   return (
-    <aside className="w-80 border-l border-slate-800 bg-slate-950/95 p-3 flex flex-col gap-3 font-mono z-10 overflow-y-auto">
+    <aside className="w-80 border-l border-slate-800 bg-slate-950/95 p-4 flex flex-col h-full gap-4 font-mono z-10 overflow-y-auto">
       {/* Live Survivor Alert Banner */}
-      <GlassPanel glowColor={isSurvivor ? "red" : "none"}>
+      <GlassPanel
+        glowColor={isSurvivor ? "red" : "none"}
+        className="flex-1 border border-white rounded-lg shadow-lg shadow-white/20 p-4"
+      >
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             LIVE DETECTION
@@ -73,7 +76,7 @@ export const DetectionPanel: React.FC<DetectionPanelProps> = ({
       </GlassPanel>
 
       {/* Real-Time Telemetry Data */}
-      <GlassPanel className="space-y-2">
+      <GlassPanel className="flex-1 space-y-2 border border-white rounded-lg shadow-lg shadow-white/20 p-4">
         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
           LIVE TELEMETRY
         </div>

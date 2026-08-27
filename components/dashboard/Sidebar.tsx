@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { GlassPanel } from "../ui/GlassPanel";
 import { StatusBadge } from "../ui/StatusBadge";
 import {
@@ -86,6 +86,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [sessionArea, setSessionArea] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Find the most recently occurring session to display when none is selected
+  const previousSession = useMemo(() => {
+    if (!availableSessions || availableSessions.length === 0) return null;
+    return [...availableSessions].sort((a, b) => {
+      const timeA = new Date(a.ended_at || a.started_at || 0).getTime();
+      const timeB = new Date(b.ended_at || b.started_at || 0).getTime();
+      return timeB - timeA;
+    })[0];
+  }, [availableSessions]);
+
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sessionName.trim() || !onCreateSession) return;
@@ -115,12 +125,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      <aside className="w-64 border-r border-slate-800 bg-slate-950/95 p-3 flex flex-col gap-4 font-mono text-xs z-10 overflow-y-auto shrink-0">
-        <div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-            MISSION CONTROL
-          </div>
-          <nav className="space-y-1">
+      <aside className="w-64 border-r border-slate-800 bg-slate-950/95 p-4 flex flex-col justify-between font-mono text-xs z-10 shrink-0">
+       <div className="space-y-4 border border-white rounded-lg p-4 shadow-lg shadow-white/20 bg-slate-950/40">
+  <div className="text-[10px] font-bold text-white uppercase tracking-widest">
+    MISSION CONTROL
+  </div>
+
+  <nav className="space-y-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -142,8 +153,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* ACTIVE SESSION PANEL */}
-        <GlassPanel className="space-y-3">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center">
+        <GlassPanel className="space-y-5 p-5 min-h-[280px] border border-white shadow-lg shadow-white/20 rounded-lg">          
+          <div className="text-[10px] font-bold text-white border-white uppercase tracking-wider flex justify-between items-center">
             <span>SESSION CONTROL</span>
             {session?.status === "ACTIVE" && (
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -151,10 +162,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {!session ? (
-            <div className="space-y-2">
-              <div className="text-[11px] text-slate-500 text-center py-1">
-                No session selected
+            <div className="space-y-4">
+              <div className="text-[11px] space-y-2 border border-slate-800/60 bg-slate-900/40 p-3 rounded-md">
+                <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                  Previous Session
+                </div>
+                {previousSession ? (
+                  <>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-500">Name:</span>
+                      <span className="text-slate-300 font-semibold truncate max-w-[120px]" title={previousSession.name}>
+                        {previousSession.name}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-500">Status:</span>
+                      <span
+                        className={
+                          previousSession.status === "COMPLETED"
+                            ? "text-slate-400"
+                            : "text-amber-400"
+                        }
+                      >
+                        {previousSession.status}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-slate-500 italic">No session</div>
+                )}
               </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
@@ -221,7 +259,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 <div className="flex justify-between">
                   <span className="text-slate-500">Duration:</span>
-                  <SessionDuration session={session} />
+                  <span className="text-slate-300">
+                    <SessionDuration session={session} />
+                  </span>
                 </div>
               </div>
 
@@ -279,7 +319,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </GlassPanel>
 
         {/* SYSTEM STATUS PANEL */}
-        <GlassPanel className="space-y-2">
+        <GlassPanel className="space-y-2 p-3 border border-white shadow-lg shadow-white/20 rounded-lg mt-4">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             SYSTEM STATUS
           </div>
@@ -315,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* CREATE SESSION MODAL */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-5 w-full max-w-sm shadow-xl space-y-4 font-mono text-xs">
+          <div className="bg-slate-900 border border-white rounded-lg p-5 w-full max-w-sm shadow-xl shadow-white/20 space-y-4 font-mono text-xs">
             <h3 className="text-sm font-bold text-cyan-400">
               CREATE NEW SESSION
             </h3>
@@ -369,7 +409,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* SELECT SESSION MODAL */}
       {isSelectModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-5 w-full max-w-md shadow-xl space-y-4 font-mono text-xs max-h-[80vh] flex flex-col">
+          <div className="bg-slate-900 border border-white rounded-lg p-5 w-full max-w-md shadow-xl shadow-white/20 space-y-4 font-mono text-xs max-h-[80vh] flex flex-col">
             <h3 className="text-sm font-bold text-cyan-400">
               SELECT EXISTING SESSION
             </h3>

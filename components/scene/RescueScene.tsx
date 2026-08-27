@@ -6,6 +6,7 @@ import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Device } from "@/app/types/device";
 import { Detection } from "@/app/types/detection";
 import { DisasterEnvironment } from "./DisasterEnvironment";
+import { CollapseBox } from "./CollapseBox";
 import { SensorNode } from "./SensorNode";
 import { SurvivorMarker } from "./SurvivorMarker";
 import { RescueZone } from "./RescueZone";
@@ -18,6 +19,9 @@ interface RescueSceneProps {
   latestActivity: number;
 }
 
+const BOX_SIZE: [number, number, number] = [4.5, 1.8, 1.4]; // length, height, breadth
+const BOX_CENTER: [number, number, number] = [0, BOX_SIZE[1] / 2, 0];
+
 export const RescueScene: React.FC<RescueSceneProps> = ({
   devices,
   selectedDevice,
@@ -29,26 +33,21 @@ export const RescueScene: React.FC<RescueSceneProps> = ({
     <div className="w-full h-full relative bg-black">
       <Canvas shadows>
         <PerspectiveCamera makeDefault position={[12, 12, 14]} fov={45} />
-        <OrbitControls
-          maxPolarAngle={Math.PI / 2 - 0.05}
-          minDistance={5}
-          maxDistance={40}
-        />
+        <OrbitControls maxPolarAngle={Math.PI / 2 - 0.05} minDistance={5} maxDistance={40} />
 
-        {/* Lighting Setup */}
-        <ambientLight intensity={0.2} />
-        <directionalLight
-          position={[10, 20, 10]}
-          intensity={0.8}
-          color="#cff4fc"
-          castShadow
-        />
-        <pointLight position={[0, 5, 0]} intensity={0.5} color="#06b6d4" />
+        {/* Neutral white ambient instead of cyan-tinted — lets node identity colors read true */}
+<ambientLight intensity={0.35} color="#ffffff" />
+<directionalLight
+  position={[10, 20, 10]}
+  intensity={0.9}
+  color="#ffffff"
+  castShadow
+/>
+{/* Drop the always-on cyan point light, or dim it hard — it's tinting everything */}
+<pointLight position={[0, 5, 0]} intensity={0.15} color="#94a3b8" />
 
-        {/* Tactical Disaster Environment */}
         <DisasterEnvironment />
 
-        {/* Render Zones */}
         <RescueZone
           name="Zone A"
           bounds={[10, 4, 10]}
@@ -56,7 +55,8 @@ export const RescueScene: React.FC<RescueSceneProps> = ({
           status={activeDetection ? "INVESTIGATING" : "NORMAL"}
         />
 
-        {/* ESP32 Sensor Nodes */}
+        <CollapseBox position={BOX_CENTER} size={BOX_SIZE} />
+
         {devices.map((device) => (
           <SensorNode
             key={device.id}
@@ -67,10 +67,9 @@ export const RescueScene: React.FC<RescueSceneProps> = ({
           />
         ))}
 
-        {/* Survivor Alert Markers */}
-        {activeDetection && activeDetection.survivor_probability > 0.5 && (
-          <SurvivorMarker detection={activeDetection} position={[2, 0.4, 3]} />
-        )}
+       {activeDetection && activeDetection.survivor_probability > 0.5 && (
+  <SurvivorMarker detection={activeDetection} position={BOX_CENTER} />
+)}
       </Canvas>
     </div>
   );

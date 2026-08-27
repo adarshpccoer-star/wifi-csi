@@ -8,38 +8,65 @@ import { Detection } from "@/app/types/detection";
 
 interface SurvivorMarkerProps {
   detection: Detection;
-  position?: [number, number, number];
+  position: [number, number, number];
 }
 
 export const SurvivorMarker: React.FC<SurvivorMarkerProps> = ({
   detection,
-  position = [2, 0.5, 3],
+  position,
 }) => {
-  const markerRef = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const haloRef = useRef<THREE.Mesh>(null);
+  const lightRef = useRef<THREE.PointLight>(null);
+
+  const intensity = 0.6 + detection.survivor_probability * 1.4;
 
   useFrame((state) => {
-    if (markerRef.current) {
-      const pulse = 1 + Math.sin(state.clock.getElapsedTime() * 6) * 0.15;
-      markerRef.current.scale.set(pulse, pulse, pulse);
+    const t = state.clock.getElapsedTime();
+    const pulse = 1 + Math.sin(t * 6) * 0.15;
+
+    if (coreRef.current) coreRef.current.scale.setScalar(pulse);
+    if (haloRef.current) {
+      const haloPulse = 1 + Math.sin(t * 3) * 0.3;
+      haloRef.current.scale.setScalar(haloPulse);
+      (haloRef.current.material as THREE.MeshBasicMaterial).opacity =
+        0.25 + Math.sin(t * 3) * 0.1;
+    }
+    if (lightRef.current) {
+      lightRef.current.intensity = intensity * (0.8 + Math.sin(t * 6) * 0.2);
     }
   });
 
   return (
     <group position={position}>
-      {/* Dynamic Red Pulsing Sphere */}
-      <mesh ref={markerRef}>
-        <sphereGeometry args={[0.35, 16, 16]} />
-        <meshBasicMaterial color="#ef4444" wireframe />
+      {/* Light source: this is what actually "shows through" the box walls */}
+      <pointLight
+        ref={lightRef}
+        color="#ef4444"
+        intensity={intensity}
+        distance={4}
+        decay={2}
+      />
+
+      {/* Bright solid core */}
+      <mesh ref={coreRef}>
+        <sphereGeometry args={[0.22, 24, 24]} />
+        <meshBasicMaterial color="#ff6b6b" />
       </mesh>
 
-      {/* Rescue Beam */}
-      <mesh position={[0, 2.5, 0]}>
-        <cylinderGeometry args={[0.05, 0.2, 5]} />
-        <meshBasicMaterial color="#ef4444" transparent opacity={0.3} />
+      {/* Additive glow halo — reads as "light bleeding," not a decal */}
+      <mesh ref={haloRef}>
+        <sphereGeometry args={[0.5, 24, 24]} />
+        <meshBasicMaterial
+          color="#ef4444"
+          transparent
+          opacity={0.3}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
       </mesh>
 
-      {/* Floating Tactical Alert Label */}
-      <Html distanceFactor={10} position={[0, 1.2, 0]}>
+      <Html distanceFactor={10} position={[0, 1.6, 0]}>
         <div className="bg-red-950/90 border border-red-500 text-red-200 p-2 rounded shadow-[0_0_15px_rgba(239,68,68,0.5)] font-mono text-xs w-48 backdrop-blur-md">
           <div className="font-bold flex items-center justify-between text-red-400">
             <span>⚠ POSSIBLE SURVIVOR</span>
