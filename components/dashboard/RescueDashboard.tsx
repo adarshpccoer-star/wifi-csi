@@ -12,7 +12,7 @@ import { useRescueWebSocket } from "@/app/hooks/useRescueWebSocket";
 import { fetchDevices } from "@/lib/api";
 import { Device } from "@/app/types/device";
 import { Detection } from "@/app/types/detection";
-import { TelemetryData } from "@/app/types/telemetry";
+import { TelemetryData, TelemetryRow } from "@/app/types/telemetry";
 import { WSIncomingMessage } from "@/app/types/websocket";
 import { formatTimestampIST } from "@/lib/formatting";
 import { Cpu, ShieldAlert, Activity } from "lucide-react";
@@ -75,109 +75,79 @@ export const RescueDashboard: React.FC = () => {
     fetchSessions();
   }, []);
 
-<<<<<<< HEAD
-=======
-  // 3. Load Session Data Pattern
->>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
-  // 3. Load live data for the selected active session
-  useEffect(() => {
-    if (!session?.id) return;
+// 3. Load Session Data Pattern
 
-    let mounted = true;
+// 3. Load live data for the selected active session
+useEffect(() => {
+  if (!session?.id) return;
 
-    const loadSessionData = async () => {
-      try {
-<<<<<<< HEAD
-        const overviewRes = await fetch(
-          `/api/sessions/${session.id}/overview`,
-          {
-            cache: "no-store",
-          },
-=======
-        // This route already exists and returns devices, telemetry, and detections.
-        const overviewRes = await fetch(
-          `/api/sessions/${session.id}/overview`,
-          { cache: "no-store" },
->>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
+  let mounted = true;
+
+  const loadSessionData = async () => {
+    try {
+      // This route already exists and returns devices, telemetry, and detections.
+      const overviewRes = await fetch(
+        `/api/sessions/${session.id}/overview`,
+        { cache: "no-store" },
+      );
+
+      if (!overviewRes.ok) {
+        throw new Error(
+          `Session overview request failed: ${overviewRes.status}`,
         );
-
-        if (!overviewRes.ok) {
-          throw new Error(
-            `Session overview request failed: ${overviewRes.status}`,
-          );
-        }
-<<<<<<< HEAD
-
-        const overview = await overviewRes.json();
-=======
->>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
-
-        const overview = await overviewRes.json();
-        if (!mounted) return;
-
-        const telemetryRows = overview.telemetry ?? [];
-        const detectionRows = overview.detections ?? [];
-
-<<<<<<< HEAD
-        // Load device status and coordinates
-=======
-        // Gets ONLINE/OFFLINE status and database coordinates from public.devices.
->>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
-        setDevices(overview.devices ?? []);
-
-        if (telemetryRows.length > 0) {
-          const latest = telemetryRows[telemetryRows.length - 1];
-
-          setTelemetry({
-            id: latest.id,
-            session_id: latest.session_id,
-            deviceId: latest.device_id,
-            timestamp: latest.timestamp,
-            rssi: latest.rssi,
-            meanAmplitude: latest.mean_amplitude,
-            amplitudeStd: latest.amplitude_std,
-            rmsAmplitude: latest.rms_amplitude,
-            frameDifference: latest.frame_difference,
-            rollingVariation: latest.rolling_variation,
-          });
-        }
-
-<<<<<<< HEAD
-        setActiveDetection(
-          detectionRows.length > 0 ? detectionRows[0] : null,
-        );
-=======
-        setActiveDetection(detectionRows.length > 0 ? detectionRows[0] : null);
->>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
-
-        setTelemetryHistory(
-          telemetryRows.slice(-60).map((item: any) => ({
-            time: new Date(item.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            }),
-            movement: normalizeValue(item.frame_difference, 0, 100),
-            presence: normalizeValue(item.mean_amplitude, 0, 100),
-          })),
-        );
-      } catch (error) {
-        console.error("Failed to load live session overview:", error);
       }
-    };
 
-    loadSessionData();
+      const overview = await overviewRes.json();
 
-<<<<<<< HEAD
-    // Refresh every 3 seconds
-    const refreshTimer = window.setInterval(() => {
-      loadSessionData();
-    }, 3000);
-=======
-    // Pull fresh Supabase-backed values every 3 seconds.
-    const refreshTimer = window.setInterval(loadSessionData, 3_000);
->>>>>>> 0c51c0655f0c28e3540ab1e63b086e1af049c452
+      if (!mounted) return;
 
+      const telemetryRows: TelemetryRow[] = overview.telemetry ?? [];
+      const detectionRows = overview.detections ?? [];
+
+      // Gets ONLINE/OFFLINE status and database coordinates from public.devices.
+      setDevices(overview.devices ?? []);
+
+      if (telemetryRows.length > 0) {
+        const latest = telemetryRows[telemetryRows.length - 1];
+
+        setTelemetry({
+          id: latest.id,
+          session_id: latest.session_id,
+          deviceId: latest.device_id,
+          timestamp: latest.timestamp,
+          rssi: latest.rssi,
+          meanAmplitude: latest.mean_amplitude,
+          amplitudeStd: latest.amplitude_std,
+          rmsAmplitude: latest.rms_amplitude,
+          frameDifference: latest.frame_difference,
+          rollingVariation: latest.rolling_variation,
+        });
+      }
+
+      setActiveDetection(
+        detectionRows.length > 0 ? detectionRows[0] : null,
+      );
+
+      setTelemetryHistory(
+        telemetryRows.slice(-60).map((item) => ({
+          time: new Date(item.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+          movement: normalizeValue(item.frame_difference, 0, 100),
+          presence: normalizeValue(item.mean_amplitude, 0, 100),
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to load live session overview:", error);
+    }
+  };
+
+  loadSessionData();
+
+  // Pull fresh Supabase-backed values every 3 seconds.
+  const refreshTimer = window.setInterval(loadSessionData, 3000);
     return () => {
       mounted = false;
       window.clearInterval(refreshTimer);
