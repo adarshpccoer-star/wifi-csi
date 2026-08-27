@@ -75,6 +75,7 @@ export const RescueDashboard: React.FC = () => {
   }, []);
 
   // 3. Load Session Data Pattern
+  // 3. Load live data for the selected active session
   useEffect(() => {
     if (!session?.id) return;
 
@@ -82,27 +83,26 @@ export const RescueDashboard: React.FC = () => {
 
     const loadSessionData = async () => {
       try {
-        const [telemetryRes, detectionsRes] = await Promise.all([
-          fetch(`/api/sessions/${session.id}/telemetry`, {
-            cache: "no-store",
-          }),
-          fetch(`/api/sessions/${session.id}/detections`, {
-            cache: "no-store",
-          }),
-        ]);
+        // This route already exists and returns devices, telemetry, and detections.
+        const overviewRes = await fetch(
+          `/api/sessions/${session.id}/overview`,
+          { cache: "no-store" },
+        );
 
-        const telemetryData = telemetryRes.ok
-          ? await telemetryRes.json()
-          : { telemetry: [] };
+        if (!overviewRes.ok) {
+          throw new Error(
+            `Session overview request failed: ${overviewRes.status}`,
+          );
+        }
 
-        const detectionData = detectionsRes.ok
-          ? await detectionsRes.json()
-          : { detections: [] };
-
+        const overview = await overviewRes.json();
         if (!mounted) return;
 
-        const telemetryRows = telemetryData.telemetry ?? [];
-        const detectionRows = detectionData.detections ?? [];
+        const telemetryRows = overview.telemetry ?? [];
+        const detectionRows = overview.detections ?? [];
+
+        // Gets ONLINE/OFFLINE status and database coordinates from public.devices.
+        setDevices(overview.devices ?? []);
 
         if (telemetryRows.length > 0) {
           const latest = telemetryRows[telemetryRows.length - 1];
@@ -121,11 +121,7 @@ export const RescueDashboard: React.FC = () => {
           });
         }
 
-        if (detectionRows.length > 0) {
-          setActiveDetection(detectionRows[0]);
-        } else {
-          setActiveDetection(null);
-        }
+        setActiveDetection(detectionRows.length > 0 ? detectionRows[0] : null);
 
         setTelemetryHistory(
           telemetryRows.slice(-60).map((item: any) => ({
@@ -134,21 +130,23 @@ export const RescueDashboard: React.FC = () => {
               minute: "2-digit",
               second: "2-digit",
             }),
-
             movement: normalizeValue(item.frame_difference, 0, 100),
-
             presence: normalizeValue(item.mean_amplitude, 0, 100),
           })),
         );
       } catch (error) {
-        console.error("Failed to load session data:", error);
+        console.error("Failed to load live session overview:", error);
       }
     };
 
     loadSessionData();
 
+    // Pull fresh Supabase-backed values every 3 seconds.
+    const refreshTimer = window.setInterval(loadSessionData, 3_000);
+
     return () => {
       mounted = false;
+      window.clearInterval(refreshTimer);
     };
   }, [session?.id]);
 
