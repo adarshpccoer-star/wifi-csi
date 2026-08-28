@@ -127,7 +127,7 @@ useEffect(() => {
       setActiveDetection(
         detectionRows.length > 0 ? detectionRows[0] : null,
       );
-
+      
       setTelemetryHistory(
         telemetryRows.slice(-60).map((item) => ({
           time: new Date(item.timestamp).toLocaleTimeString([], {
@@ -210,13 +210,20 @@ useEffect(() => {
           break;
 
         case "telemetry_ack":
-          setTelemetry({
-            deviceId: msg.deviceId,
-            timestamp: msg.timestamp,
-            meanAmplitude: msg.analysis.movementScore * 20,
-            frameDifference: msg.analysis.presenceScore,
-            rollingVariation: msg.analysis.survivorProbability,
-          });
+            setTelemetry((previous) => ({
+              ...(previous ?? {}),
+              deviceId: msg.deviceId ?? previous?.deviceId,
+              timestamp: msg.timestamp ?? previous?.timestamp,
+              meanAmplitude:
+                msg.analysis?.movementScore != null
+                  ? msg.analysis.movementScore * 20
+                  : previous?.meanAmplitude,
+              frameDifference:
+                msg.analysis?.presenceScore ?? previous?.frameDifference,
+              rollingVariation:
+                msg.analysis?.survivorProbability ?? previous?.rollingVariation,
+            }));
+
 
           // Fallback realtime update when no session id is actively bound
           if (!session?.id) {
