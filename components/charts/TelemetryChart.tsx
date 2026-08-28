@@ -16,7 +16,7 @@ interface TelemetryChartProps {
 
 export const TelemetryChart: React.FC<TelemetryChartProps> = ({ data }) => {
   return (
-    <div className="h-36 w-full">
+    <div className="h-48 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
@@ -29,7 +29,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({ data }) => {
             tickLine={false}
           />
           <YAxis
-            domain={[0, 1]}
+            domain={[0, 100]}
             stroke="#475569"
             fontSize={10}
             tickLine={false}
@@ -45,14 +45,14 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({ data }) => {
             type="monotone"
             dataKey="movement"
             stroke="#06b6d4"
-            strokeWidth={1.5}
+            strokeWidth={3}
             dot={false}
           />
           <Line
             type="monotone"
             dataKey="presence"
             stroke="#10b981"
-            strokeWidth={1.5}
+            strokeWidth={3}
             dot={false}
           />
         </LineChart>

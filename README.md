@@ -555,7 +555,7 @@ Detection?
   "detection": {
     "type": "NONE",
     "presenceScore": 0.2,
-    "movementScore": 0.1,
+    "mentScore": 0.1,
     "survivorProbability": 0.15,
     "reason": "Insufficient movement"
   }
