@@ -19,10 +19,10 @@ export function detectMovement(input: DetectionInput): DetectionResult {
    * trained ML model later.
    */
 
-  const movementScore = Math.min(
-    1,
-    (frameDifference * 0.5 + rollingVariation * 0.3 + amplitudeStd * 0.2) / 3,
-  );
+ const movementScore = input.mlConfidence ?? Math.min(
+  1,
+  (frameDifference * 0.5 + rollingVariation * 0.3 + amplitudeStd * 0.2) / 3,
+);
 
   let type: "MOVEMENT" | "PRESENCE" | "POSSIBLE_SURVIVOR";
 
@@ -38,10 +38,9 @@ export function detectMovement(input: DetectionInput): DetectionResult {
 
   const presenceScore = Math.min(1, (input.meanAmplitude ?? 0) / 100);
 
-  const survivorProbability =
-    type === "POSSIBLE_SURVIVOR"
-      ? movementScore * 0.8 + presenceScore * 0.2
-      : 0;
+ const survivorProbability = detected
+  ? movementScore * 0.8 + presenceScore * 0.2
+  : 0;
 
   return {
     detected,
