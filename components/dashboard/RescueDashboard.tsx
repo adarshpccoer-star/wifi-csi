@@ -12,7 +12,7 @@ import { useRescueWebSocket } from "@/app/hooks/useRescueWebSocket";
 import { fetchDevices } from "@/lib/api";
 import { Device } from "@/app/types/device";
 import { Detection } from "@/app/types/detection";
-import { TelemetryData, TelemetryRow } from "@/app/types/telemetry";
+import { Data, Row } from "@/app/types/";
 import { WSIncomingMessage } from "@/app/types/websocket";
 import { formatTimestampIST } from "@/lib/formatting";
 import { Cpu, ShieldAlert, Activity } from "lucide-react";
@@ -210,19 +210,19 @@ useEffect(() => {
           break;
 
         case "telemetry_ack":
-            setTelemetry((previous) => ({
-              ...(previous ?? {}),
-              deviceId: msg.deviceId ?? previous?.deviceId,
-              timestamp: msg.timestamp ?? previous?.timestamp,
-              meanAmplitude:
-                msg.analysis?.movementScore != null
-                  ? msg.analysis.movementScore * 20
-                  : previous?.meanAmplitude,
-              frameDifference:
-                msg.analysis?.presenceScore ?? previous?.frameDifference,
-              rollingVariation:
-                msg.analysis?.survivorProbability ?? previous?.rollingVariation,
-            }));
+  setTelemetry((previous) => ({
+    ...(previous ?? {}),
+    deviceId: msg.deviceId ?? previous?.deviceId,
+    timestamp: msg.timestamp ?? previous?.timestamp,
+    meanAmplitude:
+      msg.analysis?.movementScore != null
+        ? msg.analysis.movementScore * 20
+        : previous?.meanAmplitude,
+    frameDifference:
+      msg.analysis?.presenceScore ?? previous?.frameDifference,
+    rollingVariation:
+      msg.analysis?.survivorProbability ?? previous?.rollingVariation,
+  }));
 
 
           // Fallback realtime update when no session id is actively bound
