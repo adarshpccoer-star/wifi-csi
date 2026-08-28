@@ -24,15 +24,13 @@ export function detectMovement(input: DetectionInput): DetectionResult {
   (frameDifference * 0.5 + rollingVariation * 0.3 + amplitudeStd * 0.2) / 3,
 );
 
-  let type: "MOVEMENT" | "PRESENCE" | "POSSIBLE_SURVIVOR";
+let type: "PRESENCE" | "MOVEMENT" | "POSSIBLE_SURVIVOR";
 
-  if (movementScore >= 0.75) {
-    type = "POSSIBLE_SURVIVOR";
-  } else if (movementScore >= 0.4) {
-    type = "MOVEMENT";
-  } else {
-    type = "PRESENCE";
-  }
+if (input.mlConfidence !== undefined) {
+  type = input.mlConfidence > 0.5 ? "PRESENCE" : "MOVEMENT";
+} else {
+  type = "PRESENCE";
+}
 
   const detected = movementScore >= 0.4;
 
