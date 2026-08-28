@@ -10,6 +10,7 @@ export interface DetectionInput {
   rmsAmplitude?: number;
   frameDifference?: number;
   rollingVariation?: number;
+  mlConfidence?: number;
 }
 
 export interface DetectionResult {

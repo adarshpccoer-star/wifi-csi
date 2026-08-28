@@ -13,4 +13,5 @@ export interface Detection {
   status: DetectionStatus;
   contributing_devices: string[];
   reason?: string;
+  mlConfidence?: number;
 }
