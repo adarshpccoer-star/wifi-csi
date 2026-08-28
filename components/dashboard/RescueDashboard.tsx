@@ -497,10 +497,31 @@ useEffect(() => {
     return (
       <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden select-none font-mono">
         <TopBar
-          isConnected={isConnected}
-          isPresentationMode={isPresentationMode}
-          onTogglePresentation={() => setIsPresentationMode(!isPresentationMode)}
-        />
+  isConnected={demoRunning || isConnected}
+  isPresentationMode={isPresentationMode}
+  onTogglePresentation={() =>
+    setIsPresentationMode(!isPresentationMode)
+  }
+  onlineSensors={
+    demoRunning
+      ? 3
+      : devices.filter(
+          (d) => d.status === "ONLINE",
+        ).length
+  }
+  totalSensors={3}
+  survivorProbability={
+    activeDetection
+      ? Math.round(
+          activeDetection.survivor_probability * 100,
+        )
+      : 0
+  }
+  activeSession={
+  demoRunning ||
+  session?.status === "ACTIVE"
+}
+/>
 
         <div className="flex flex-1 overflow-hidden relative">
           <Sidebar
