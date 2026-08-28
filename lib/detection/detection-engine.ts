@@ -21,7 +21,7 @@ export function detectMovement(input: DetectionInput): DetectionResult {
 
   const movementScore = Math.min(
     1,
-    (frameDifference * 0.5 + rollingVariation * 0.3 + amplitudeStd * 0.2) / 20,
+    (frameDifference * 0.5 + rollingVariation * 0.3 + amplitudeStd * 0.2) / 3,
   );
 
   let type: "MOVEMENT" | "PRESENCE" | "POSSIBLE_SURVIVOR";
