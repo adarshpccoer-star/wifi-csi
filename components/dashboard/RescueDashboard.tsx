@@ -116,29 +116,35 @@ const [humanDetected, setHumanDetected] = useState(false);
   setDevices([
   {
     id: "ESP32-01",
+    device_id: "ESP32-01",
     name: "North Sensor",
     status: "ONLINE",
     location_x: 5,
     location_y: 0,
     location_z: 0,
+    last_seen: null,
   },
   {
     id: "ESP32-02",
+    device_id: "ESP32-02",
     name: "East Sensor",
     status: "ONLINE",
     location_x: -5,
     location_y: -5,
     location_z: 0,
+    last_seen: null,
   },
   {
     id: "ESP32-03",
+    device_id: "ESP32-03",
     name: "South Sensor",
     status: "ONLINE",
     location_x: -5,
     location_y: 5,
     location_z: 0,
+    last_seen: null,
   },
-] as any);
+]);
 }
 
         if (telemetryRows.length > 0) {
