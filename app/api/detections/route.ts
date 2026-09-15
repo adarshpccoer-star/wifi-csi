@@ -1,43 +1,24 @@
-import { NextResponse } from "next/server";
+import { translatePrediction } from "@/lib/ml/translatePrediction";
+import { mlPredictionSchema } from "@/lib/vaildation/mlPrediction";
 import { supabaseAdmin } from "@/lib/utils/supabse/server";
-import { z } from "zod";
-import { detectMovement } from "@/lib/detection/detection-engine";
+import { NextRequest, NextResponse } from "next/server";
 
-const detectionRequestSchema = z.object({
-  sessionId: z.string().uuid(),
-  deviceId: z.string().uuid(),
-  zone: z.string().min(1),
-  telemetry: z.object({
-    rssi: z.number().optional(),
-    meanAmplitude: z.number().optional(),
-    amplitudeStd: z.number().optional(),
-    rmsAmplitude: z.number().optional(),
-    frameDifference: z.number().optional(),
-    rollingVariation: z.number().optional(),
-  }),
-});
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get("sessionId");
 
-    // 1. Validate request body
-    const result = detectionRequestSchema.safeParse(body);
-
-    if (!result.success) {
+    if (!sessionId) {
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid detection request",
-          details: result.error.flatten(),
+          error: "Session ID is required in search params (?sessionId=UUID)",
         },
         { status: 400 },
       );
     }
 
-    const { sessionId, deviceId, zone, telemetry } = result.data;
-
-    // 2. Check session status
+    // 1. Validate active session state
     const { data: session, error: sessionError } = await supabaseAdmin
       .from("sessions")
       .select("id, status")
@@ -46,76 +27,78 @@ export async function POST(request: Request) {
 
     if (sessionError || !session) {
       return NextResponse.json(
-        { success: false, error: "Session not found" },
+        {
+          success: false,
+          error: "Session not found",
+        },
         { status: 404 },
       );
     }
 
     if (session.status !== "ACTIVE") {
       return NextResponse.json(
-        { success: false, error: "Session is not active" },
+        {
+          success: false,
+          error: "Session is not active",
+        },
         { status: 409 },
       );
     }
 
-    // 3. Check device
-    const { data: device, error: deviceError } = await supabaseAdmin
-      .from("devices")
-      .select("id, device_id, status")
-      .eq("id", deviceId)
-      .single();
+    // 2. Validate request body against the central ML schema
+    const body = await request.json();
+    const validationResult = mlPredictionSchema.safeParse(body);
 
-    if (deviceError || !device) {
+    if (!validationResult.success) {
       return NextResponse.json(
-        { success: false, error: "Device not found" },
-        { status: 404 },
+        {
+          success: false,
+          error: "Invalid request body",
+          details: validationResult.error.flatten(),
+        },
+        { status: 400 },
       );
     }
 
-    // 4. Update device heartbeat
-    await supabaseAdmin
-      .from("devices")
-      .update({
-        status: "ONLINE",
-        last_seen: new Date().toISOString(),
-      })
-      .eq("id", deviceId);
+    const data = validationResult.data;
+    const translated = translatePrediction(data.prediction);
 
-    // 5. Run detection engine
-    const detection = detectMovement(telemetry);
-
-    if (!detection.detected) {
+    // 3. No presence detected
+    if (!translated) {
       return NextResponse.json({
         success: true,
         detected: false,
-        detection,
+        message: "No presence detected. Skipping insertion.",
       });
     }
 
-    // 6. Save detection with array of device UUIDs
-    const { data, error } = await supabaseAdmin
+    // 4. Save ML Detection
+    const { data: insertedDetection, error } = await supabaseAdmin
       .from("detections")
       .insert({
         session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        zone,
-        type: detection.type,
-        presence_score: detection.presenceScore,
-        movement_score: detection.movementScore,
-        survivor_probability: detection.survivorProbability,
+        timestamp: data.timestamp,
+        zone: translated.zone,
+        type: translated.type,
+        presence_score: translated.presence_score,
+        movement_score: translated.movement_score,
+        survivor_probability: translated.survivor_probability,
         status: "UNVERIFIED",
-        contributing_devices: [deviceId],
+        contributing_devices: [],
+        environment_mode: data.environment_mode,
+        activity: translated.activity,
+        ml_confidence: translated.ml_confidence,
+        alert_level: translated.alert_level,
       })
       .select()
       .single();
 
     if (error) {
-      console.error("Detection insert error:", error);
+      console.error("Failed to insert ML detection:", error);
       return NextResponse.json(
         {
           success: false,
-          error: "Failed to save detection",
-          details: error.message,
+          error: error.message,
         },
         { status: 500 },
       );
@@ -124,18 +107,15 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       detected: true,
-      detection: data,
-      analysis: {
-        movementScore: detection.movementScore,
-        presenceScore: detection.presenceScore,
-        survivorProbability: detection.survivorProbability,
-        reason: detection.reason,
-      },
+      detection: insertedDetection,
     });
   } catch (error) {
-    console.error("POST /api/detections error:", error);
+    console.error("POST detection error:", error);
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      {
+        success: false,
+        error: "Failed to process detection payload",
+      },
       { status: 500 },
     );
   }

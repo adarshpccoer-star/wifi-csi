@@ -1,54 +1,100 @@
-import { detectMovement } from "@/lib/detection/detection-engine";
-import { supabaseClient } from "@/lib/utils/supabse/client";
+import { supabaseAdmin } from "@/lib/utils/supabse/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const mlTelemetrySchema = z.object({
+  timestamp: z.string().datetime(),
+
+  telemetry: z.object({
+    temporal_cv_a: z.number(),
+    temporal_cv_b: z.number(),
+    spatial_mean_a: z.number(),
+    spatial_mean_b: z.number(),
+    differential_ratio: z.number(),
+  }),
+});
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const { searchParams } = new URL(request.url);
 
-    const { sessionId, zone, telemetry } = body;
+    const sessionId = searchParams.get("sessionId");
 
-    if (!sessionId || !zone || !telemetry) {
+    if (!sessionId) {
       return NextResponse.json(
         {
           success: false,
-          error: "sessionId, zone and telemetry are required",
+          error: "Session ID is required in search params (?sessionId=UUID)",
         },
         { status: 400 },
       );
     }
 
-    // 👇 ADD IT HERE
-    const detection = detectMovement({
-      rssi: telemetry.rssi,
+    const body = await request.json();
 
-      meanAmplitude: telemetry.meanAmplitude,
-      amplitudeStd: telemetry.amplitudeStd,
-      rmsAmplitude: telemetry.rmsAmplitude,
-      frameDifference: telemetry.frameDifference,
-      rollingVariation: telemetry.rollingVariation,
-    });
+    const validationResult = mlTelemetrySchema.safeParse(body);
 
-    console.log("Detection analysis:", detection);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid telemetry payload",
+          details: validationResult.error.format(),
+        },
+        { status: 400 },
+      );
+    }
 
-    // Then save detection to Supabase
-    const { data, error } = await supabaseClient
-      .from("detections")
+    const data = validationResult.data;
+
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from("sessions")
+      .select("id, status")
+      .eq("id", sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Session not found",
+        },
+        { status: 404 },
+      );
+    }
+
+    if (session.status !== "ACTIVE") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Session is not active",
+        },
+        { status: 409 },
+      );
+    }
+
+    const { data: telemetryRow, error } = await supabaseAdmin
+      .from("telemetry")
       .insert({
         session_id: sessionId,
-        zone,
 
-        type: detection.type,
-        presence_score: detection.presenceScore,
-        movement_score: detection.movementScore,
-        survivor_probability: detection.survivorProbability,
-        status: "UNVERIFIED",
+        timestamp: data.timestamp,
+
+        temporal_cv_a: data.telemetry.temporal_cv_a,
+
+        temporal_cv_b: data.telemetry.temporal_cv_b,
+
+        spatial_mean_a: data.telemetry.spatial_mean_a,
+
+        spatial_mean_b: data.telemetry.spatial_mean_b,
+
+        differential_ratio: data.telemetry.differential_ratio,
       })
       .select()
       .single();
 
     if (error) {
-      console.error(error);
+      console.error("Failed to insert ML telemetry:", error);
 
       return NextResponse.json(
         {
@@ -61,24 +107,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      detected: detection.survivorProbability > 0.5,
-
-      detection: data,
-
-      analysis: {
-        movementScore: detection.movementScore,
-        presenceScore: detection.presenceScore,
-        survivorProbability: detection.survivorProbability,
-        reason: detection.reason,
-      },
+      telemetry: telemetryRow,
     });
   } catch (error) {
-    console.error(error);
+    console.error("POST telemetry error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: "Detection processing failed",
+        error: "Telemetry processing failed",
       },
       { status: 500 },
     );
