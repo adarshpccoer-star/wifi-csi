@@ -9,7 +9,6 @@ interface UseRescueWebSocketOptions {
 }
 
 const DEFAULT_WS_URL = "wss://wifi-csi-shi-websocket.onrender.com";
-
 export function useRescueWebSocket({
   url = process.env.NEXT_PUBLIC_WS_URL || DEFAULT_WS_URL,
   onMessage,

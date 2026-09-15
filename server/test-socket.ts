@@ -1,89 +1,68 @@
 import WebSocket from "ws";
 
-const DEVICE_ID = "ESP32-01";
-const SESSION_ID = "545fe095-9073-4ece-a7a2-af690bbbb3fb";
+const SESSION_ID = "0c6e770a-7354-4363-8b62-2e029d0127fe";
 
 const ws = new WebSocket("ws://localhost:3001");
-
-let heartbeatTimer: NodeJS.Timeout;
-let telemetryTimer: NodeJS.Timeout;
 
 ws.on("open", () => {
   console.log("Connected");
 
-  // ----------------------------------------
-  // HEARTBEAT
-  // ----------------------------------------
+  const message = {
+    type: "ml_prediction",
 
-  const sendHeartbeat = () => {
-    const message = {
-      type: "heartbeat",
-      deviceId: DEVICE_ID,
-    };
+    sessionId: SESSION_ID,
 
-    console.log("Sending heartbeat:", message);
-
-    ws.send(JSON.stringify(message));
-  };
-
-  sendHeartbeat();
-
-  heartbeatTimer = setInterval(sendHeartbeat, 5000);
-
-  // ----------------------------------------
-  // TELEMETRY
-  // ----------------------------------------
-
-  telemetryTimer = setInterval(() => {
-    const message = {
-      type: "telemetry",
-
-      deviceId: DEVICE_ID,
-
-      sessionId: SESSION_ID,
-
+    data: {
       timestamp: new Date().toISOString(),
 
-      rssi: -48,
+      environment_mode: "rubble",
 
-      features: {
-        meanAmplitude: 12.4,
-        amplitudeStd: 2.1,
-        rmsAmplitude: 13.2,
-        frameDifference: 0.72,
-        rollingVariation: 0.31,
+      prediction: {
+        presence: false,
+        activity: "empty",
+        zone: "none",
+        confidence: 0.95,
+        alert_level: "normal",
       },
-    };
 
-    console.log("Sending telemetry:", message);
+      telemetry: {
+        temporal_cv_a: 0.342,
+        temporal_cv_b: 0.081,
+        spatial_mean_a: 18.2,
+        spatial_mean_b: 24.5,
+        differential_ratio: 4.22,
+      },
 
-    ws.send(JSON.stringify(message));
-  }, 3000);
+      hardware: {
+        esp1_status: "online",
+        esp2_status: "online",
+        esp3_tx_status: "active",
+      },
+    },
+  };
+
+  console.log("Sending ML prediction:");
+  console.dir(message, { depth: null });
+
+  ws.send(JSON.stringify(message));
 });
 
 ws.on("message", (data) => {
   const message = JSON.parse(data.toString());
 
-  console.log("Server:", message);
+  console.log("Server:");
+  console.dir(message, { depth: null });
 });
 
 ws.on("close", () => {
   console.log("Connection closed");
-
-  clearInterval(heartbeatTimer);
-  clearInterval(telemetryTimer);
 });
 
 ws.on("error", (error) => {
   console.error("WebSocket error:", error);
 });
 
-// Ctrl+C
-process.on("SIGINT", () => {
-  console.log("\nStopping test client...");
-
-  clearInterval(heartbeatTimer);
-  clearInterval(telemetryTimer);
-
+setTimeout(() => {
+  console.log("Test finished.");
   ws.close();
-});
+}, 3000);
